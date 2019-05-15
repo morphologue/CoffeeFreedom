@@ -15,10 +15,6 @@ namespace CoffeeFreedom.Worker
         protected static readonly HttpClient Http;
         protected static int? LastKnownQueueLength;
 
-        protected List<string> SessionCookies;
-        protected string Csrf;
-        protected HtmlDocument ParsedDocument;
-
         static RequestHandlerBase()
         {
             Http = new HttpClient
@@ -27,53 +23,54 @@ namespace CoffeeFreedom.Worker
             };
         }
 
+        protected List<string> Cookies;
+        protected string Csrf;
+        protected HtmlDocument Document;
+
         public abstract Task<WorkerResponse> HandleAsync(WorkerRequest request);
 
         protected async Task<WorkerResponse> LogInAsync(WorkerRequest request)
         {
-            // Load the login page just to get the anti-CSRF token.
-            List<string> loginCookies;
-            string loginCsrf;
+            // Load the login page just to get CSRF tokens.
             using (HttpResponseMessage loginGetResponse = await Http.GetAsync("/account/login"))
             {
-                HtmlDocument loginDoc = new HtmlDocument();
-                loginDoc.Load(await loginGetResponse.Content.ReadAsStreamAsync());
-                loginCookies = ExtractCookies(loginGetResponse.Headers).ToList();
-                loginCsrf = ExtractCsrf(loginDoc);
+                Document = new HtmlDocument();
+                Document.Load(await loginGetResponse.Content.ReadAsStreamAsync());
+                SaveCookies(loginGetResponse.Headers);
+                SaveCsrf(Document);
             }
 
             // Submit the login form.
-            ParsedDocument = new HtmlDocument();
+            Document = new HtmlDocument();
             using (HttpRequestMessage loginPostRequest = new HttpRequestMessage(HttpMethod.Post, "/account/login"))
             using (MultipartFormDataContent form = new MultipartFormDataContent())
             {
                 form.Add(new StringContent(request.Username), "Username");
                 form.Add(new StringContent(request.Password), "Password");
-                AddCookies(loginCookies, loginPostRequest.Headers);
-                AddCsrf(loginCsrf, form);
+                AddCookies(loginPostRequest.Headers);
+                AddCsrf(form);
                 loginPostRequest.Content = form;
 
                 using (HttpResponseMessage loginPostResponse = await Http.SendAsync(loginPostRequest))
                 {
-                    ParsedDocument.Load(await loginPostResponse.Content.ReadAsStreamAsync());
-                    SessionCookies = ExtractCookies(loginPostResponse.Headers).ToList();
-                    Csrf = ExtractCsrf(ParsedDocument);
+                    Document.Load(await loginPostResponse.Content.ReadAsStreamAsync());
+                    SaveCookies(loginPostResponse.Headers);
+                    SaveCsrf(Document);
                 }
             }
 
             // Check if the login succeeded.
-            if (ParsedDocument.DocumentNode.SelectSingleNode("//h2[text()='Username or password is incorrect.']") != null)
+            if (Document.DocumentNode.SelectSingleNode("//h2[text()='Username or password is incorrect.']") != null)
             {
                 return new WorkerResponse
                 {
                     Guid = request.Guid,
-                    QueueLength = LastKnownQueueLength,
                     Status = WorkStatus.BadLogin
                 };
             }
             
             // Check if the cafe is closed.
-            if (ParsedDocument.DocumentNode.SelectSingleNode("//h2[text()='Cafe is Closed']") != null)
+            if (Document.DocumentNode.SelectSingleNode("//h2[text()='Cafe is Closed']") != null)
             {
                 return new WorkerResponse
                 {
@@ -82,43 +79,67 @@ namespace CoffeeFreedom.Worker
                 };
             }
 
-            // TODO: Populate QueuePosition if an order has been placed, or update LastKnownQueueLength if we're on the ordering page.
-
-            return new WorkerResponse
+            // Check if we're on the ordering page.
+            HtmlNode queueLengthNode = Document.DocumentNode.SelectSingleNode("//div[@class='coffee-order-footer-timer-numbers']");
+            if (queueLengthNode != null)
             {
-                Guid = request.Guid,
-                QueueLength = LastKnownQueueLength,
-                Status = WorkStatus.Ok
-            };
+                LastKnownQueueLength = int.Parse(queueLengthNode.InnerText);
+                return new WorkerResponse
+                {
+                    Guid = request.Guid,
+                    QueueLength = LastKnownQueueLength,
+                    Status = WorkStatus.Ok
+                };
+            }
+
+            // Check if we're on the "wait" page.
+            const string queuePositionPrefix = "You are currently number ";
+            HtmlNode queuePositionNode = Document.DocumentNode.SelectSingleNode($"//h2[starts-with(text(), '{queuePositionPrefix}')]");
+            if (queuePositionNode != null)
+            {
+                string number = queuePositionNode.InnerText.Substring(queuePositionPrefix.Length);
+                number = number.Substring(0, number.IndexOf(' '));
+                return new WorkerResponse
+                {
+                    Guid = request.Guid,
+                    QueueLength = LastKnownQueueLength,
+                    QueuePosition = int.Parse(number),
+                    Status = WorkStatus.Ok
+                };
+            }
+
+            // We ended up somewhere unknown.
+            throw new Exception("Cannot understand post-login page: " + Document.DocumentNode.OuterHtml);
         }
 
-        protected IEnumerable<string> ExtractCookies(HttpResponseHeaders headers)
+        protected void SaveCookies(HttpResponseHeaders headers)
         {
             if (!headers.TryGetValues("Set-Cookie", out IEnumerable<string> values))
             {
-                return new string[0];
+                Cookies = new List<string>();
             }
 
-            return values
+            Cookies = values
                 .Where(v => v.StartsWith(".AspNetCore."))
-                .Select(v => v.Substring(0, v.IndexOf(';')));
+                .Select(v => v.Substring(0, v.IndexOf(';')))
+                .ToList();
         }
 
-        protected string ExtractCsrf(HtmlDocument doc)
+        protected void SaveCsrf(HtmlDocument doc)
         {
-            return doc.DocumentNode
+            Csrf = doc.DocumentNode
                 .SelectSingleNode("//input[@name='__RequestVerificationToken']")
                 ?.GetAttributeValue("value", "");
         }
 
-        protected void AddCsrf(string csrf, MultipartFormDataContent form)
+        protected void AddCsrf(MultipartFormDataContent form)
         {
-            form.Add(new StringContent(csrf), "__RequestVerificationToken");
+            form.Add(new StringContent(Csrf), "__RequestVerificationToken");
         }
 
-        protected void AddCookies(IEnumerable<string> cookies, HttpRequestHeaders headers)
+        protected void AddCookies(HttpRequestHeaders headers)
         {
-            headers.Add("Cookie", string.Join("; ", cookies));
+            headers.Add("Cookie", string.Join("; ", Cookies));
         }
     }
 }

@@ -6,9 +6,6 @@ namespace CoffeeFreedom.Worker
 {
     internal class PeekRequestHandler : RequestHandlerBase
     {
-        public override async Task<WorkerResponse> HandleAsync(WorkerRequest request)
-        {
-            return await LogInAsync(request);
-        }
+        public override Task<WorkerResponse> HandleAsync(WorkerRequest request) => LogInAsync(request);
     }
 }
