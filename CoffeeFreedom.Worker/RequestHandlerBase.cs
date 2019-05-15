@@ -62,21 +62,13 @@ namespace CoffeeFreedom.Worker
             // Check if the login succeeded.
             if (Document.DocumentNode.SelectSingleNode("//h2[text()='Username or password is incorrect.']") != null)
             {
-                return new WorkerResponse
-                {
-                    Guid = request.Guid,
-                    Status = WorkStatus.BadLogin
-                };
+                return new WorkerResponse(WorkStatus.BadLogin);
             }
             
             // Check if the cafe is closed.
             if (Document.DocumentNode.SelectSingleNode("//h2[text()='Cafe is Closed']") != null)
             {
-                return new WorkerResponse
-                {
-                    Guid = request.Guid,
-                    Status = WorkStatus.CafeClosed
-                };
+                return new WorkerResponse(WorkStatus.CafeClosed);
             }
 
             // Check if we're on the ordering page.
@@ -84,11 +76,12 @@ namespace CoffeeFreedom.Worker
             if (queueLengthNode != null)
             {
                 LastKnownQueueLength = int.Parse(queueLengthNode.InnerText);
-                return new WorkerResponse
+                return new WorkerResponse(WorkStatus.Ok)
                 {
-                    Guid = request.Guid,
-                    QueueLength = LastKnownQueueLength,
-                    Status = WorkStatus.Ok
+                    Progress = new Progress
+                    {
+                        QueueLength = LastKnownQueueLength
+                    }
                 };
             }
 
@@ -99,12 +92,13 @@ namespace CoffeeFreedom.Worker
             {
                 string number = queuePositionNode.InnerText.Substring(queuePositionPrefix.Length);
                 number = number.Substring(0, number.IndexOf(' '));
-                return new WorkerResponse
+                return new WorkerResponse(WorkStatus.Ok)
                 {
-                    Guid = request.Guid,
-                    QueueLength = LastKnownQueueLength,
-                    QueuePosition = int.Parse(number),
-                    Status = WorkStatus.Ok
+                    Progress = new Progress
+                    {
+                        QueueLength = LastKnownQueueLength,
+                        QueuePosition = int.Parse(number)
+                    }
                 };
             }
 

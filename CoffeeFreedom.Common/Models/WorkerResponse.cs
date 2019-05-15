@@ -1,12 +1,16 @@
-﻿using System;
-
-namespace CoffeeFreedom.Common.Models
+﻿namespace CoffeeFreedom.Common.Models
 {
     public class WorkerResponse : WorkerModelBase
     {
+        public WorkerResponse() { }
+
+        public WorkerResponse(WorkStatus status)
+        {
+            Status = status;
+        }
+
         public WorkStatus Status { get; set; }
-        public int? QueueLength { get; set; }
-        public int? QueuePosition { get; set; }
+        public Progress Progress { get; set; }
     }
 
     public enum WorkStatus

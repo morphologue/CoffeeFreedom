@@ -55,19 +55,12 @@ namespace CoffeeFreedom.Worker
             catch (Exception ex)
             {
                 _log.WriteEntry($"Exception: {ex}");
-                response = new WorkerResponse
-                {
-                    Guid = request.Guid,
-                    Status = WorkStatus.Error
-                };
+                response = new WorkerResponse(WorkStatus.Error);
             }
 
-            // Validate and start sending the response.
-            if (response.Guid != request.Guid)
-            {
-                throw new ApplicationException($"Response {response.Guid} does not match request {request.Guid}");
-            }
-            _hubProxy.Invoke("Response", response);
+            // Send the response.
+            response.Guid = request.Guid;
+            _hubProxy.Invoke("Response", response).Wait();
 
             _log.WriteEntry($"Sent response {response.Guid}");
         }
