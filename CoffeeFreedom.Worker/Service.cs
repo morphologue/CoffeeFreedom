@@ -68,15 +68,7 @@ namespace CoffeeFreedom.Worker
         // Allow this project to be run as a console app.
         private static void Main()
         {
-            // TODO: Uncomment
-            // Run(new ServiceBase[] {new Service()});
-
-            WorkerResponse result = new PeekRequestHandler().HandleAsync(new WorkerRequest
-            {
-                Guid = Guid.NewGuid(),
-                Username = "gavin.heise@infotrack.com.au",
-                Password = "Fete0^GomkCazu1"
-            }).Result;
+            Run(new ServiceBase[] {new Service()});
         }
     }
 }
