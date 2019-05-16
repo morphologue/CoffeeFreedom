@@ -3,18 +3,18 @@ using Newtonsoft.Json.Converters;
 
 namespace CoffeeFreedom.Common.Models
 {
-    [JsonConverter(typeof(StringEnumConverter))]
     public class Order
     {
         public Size Size { get; set; }
-        public Milk Milk { get; set; }
-        public Dash Dash { get; set; }
-        public Sweetener Sweetener { get; set; }
+        public Milk? Milk { get; set; }
+        public Dash? Dash { get; set; }
+        public Sweetener? Sweetener { get; set; }
         public float SweetenerQuantity { get; set; }
         public float ProportionFull { get; set; }
         public Customisation[] Customisations { get; set; }
     }
 
+    [JsonConverter(typeof(StringEnumConverter))]
     public enum Size
     {
         MiniCup,
@@ -23,32 +23,33 @@ namespace CoffeeFreedom.Common.Models
         KeepCup
     }
 
+    [JsonConverter(typeof(StringEnumConverter))]
     public enum Milk
     {
-        None,
         FullCream,
         Skim,
         Soy,
         Almond
     }
 
+    [JsonConverter(typeof(StringEnumConverter))]
     public enum Dash
     {
-        None,
         ColdMilk,
         HotMilk,
         ColdWater,
         HotWater
     }
 
+    [JsonConverter(typeof(StringEnumConverter))]
     public enum Sweetener
     {
-        None,
         Sugar,
         Equal,
         Honey
     }
 
+    [JsonConverter(typeof(StringEnumConverter))]
     public enum Customisation
     {
         Caramel,

@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Net.Mime;
+using System.Threading.Tasks;
 using CoffeeFreedom.Api.Models;
 using CoffeeFreedom.Api.Services;
 using CoffeeFreedom.Common.Models;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace CoffeeFreedom.Controllers
 {
     [ApiController]
+    [Route("/coffeefreedom")]
     public class CoffeeController : ControllerBase
     {
         private readonly ICoffeeService _coffee;
@@ -18,25 +20,27 @@ namespace CoffeeFreedom.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<Progress>> Get()
-        {
-            CoffeeServiceResult result = await _coffee.PeekAsync();
-            if (result.HttpStatusCode == StatusCodes.Status200OK)
-            {
-                return Ok(result.Progress);
-            }
-            return StatusCode(result.HttpStatusCode, result.Message);
-        }
+        [Produces(MediaTypeNames.Application.Json)]
+        [Consumes(MediaTypeNames.Application.Json)]
+        public async Task<ActionResult<Progress>> Get() => ToActionResult(await _coffee.PeekAsync());
 
         [HttpPost]
-        public async Task<ActionResult<Progress>> Post([FromBody] Order order)
+        [Produces(MediaTypeNames.Application.Json)]
+        [Consumes(MediaTypeNames.Application.Json)]
+        public async Task<ActionResult<Progress>> Post([FromBody] Order order) => ToActionResult(await _coffee.OrderAsync(order));
+
+        private ActionResult<Progress> ToActionResult(CoffeeServiceResult coffeeResult)
         {
-            CoffeeServiceResult result = await _coffee.OrderAsync(order);
-            if (result.HttpStatusCode == StatusCodes.Status200OK)
+            if (coffeeResult.HttpStatusCode == StatusCodes.Status200OK)
             {
-                return Ok(result.Progress);
+                return Ok(coffeeResult.Progress);
             }
-            return StatusCode(result.HttpStatusCode, result.Message);
+            return new ContentResult()
+            {
+                StatusCode = coffeeResult.HttpStatusCode,
+                Content = coffeeResult.Message,
+                ContentType = MediaTypeNames.Text.Plain
+            };
         }
     }
 }
