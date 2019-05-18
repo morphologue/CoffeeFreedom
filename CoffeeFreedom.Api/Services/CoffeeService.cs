@@ -1,11 +1,10 @@
-﻿using CoffeeFreedom.Api.Models;
-using CoffeeFreedom.Common.Models;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Primitives;
-using System;
-using System.Linq;
-using System.Text;
+﻿using Microsoft.AspNetCore.Http;
 using System.Threading.Tasks;
+using CoffeeFreedom.Api.Extensions;
+using CoffeeFreedom.Api.Models;
+using CoffeeFreedom.Common.Extensions;
+using CoffeeFreedom.Common.Models;
+using Microsoft.Extensions.Logging;
 
 namespace CoffeeFreedom.Api.Services
 {
@@ -17,67 +16,101 @@ namespace CoffeeFreedom.Api.Services
 
     public class CoffeeService : ICoffeeService
     {
-        private const string BasicPrefix = "Basic";
-
+        private readonly ILogger<CoffeeService> _log;
         private readonly IHttpContextAccessor _accessor;
+        private readonly IWorkPerformer _performer;
 
-        public CoffeeService(IHttpContextAccessor accessor)
+        public CoffeeService(ILogger<CoffeeService> log, IHttpContextAccessor accessor, IWorkPerformer performer)
         {
+            _log = log;
             _accessor = accessor;
+            _performer = performer;
         }
 
         public async Task<CoffeeServiceResult> PeekAsync()
         {
-            WorkerRequest wr = new WorkerRequest();
-            if (!DecodeBasicAuth(wr))
+            WorkerRequest request = new WorkerRequest();
+            if (!ExtractCredentials(request, out var errorResult))
             {
-                return new CoffeeServiceResult(StatusCodes.Status401Unauthorized)
-                {
-                    Message = "HTTP basic authentication is required"
-                };
+                return errorResult;
             }
 
-            throw new NotImplementedException();
+            return ToCoffeeServiceResult(await _performer.WorkAsync(request));
         }
 
         public async Task<CoffeeServiceResult> OrderAsync(Order order)
         {
-            WorkerRequest wr = new WorkerRequest();
-            if (!DecodeBasicAuth(wr))
+            WorkerRequest request = new WorkerRequest();
+            if (!ExtractCredentials(request, out var errorResult))
             {
-                return new CoffeeServiceResult(StatusCodes.Status401Unauthorized)
+                return errorResult;
+            }
+
+            var validationError = order.Validate();
+            if (validationError != null)
+            {
+                return new CoffeeServiceResult(StatusCodes.Status400BadRequest)
                 {
-                    Message = "HTTP basic authentication is required"
+                    Message = validationError
                 };
             }
 
-            throw new NotImplementedException();
+            return ToCoffeeServiceResult(await _performer.WorkAsync(request));
         }
 
-        private bool DecodeBasicAuth(WorkerRequest wr)
+        private bool ExtractCredentials(WorkerRequest request, out CoffeeServiceResult errorResult)
         {
-            if (!_accessor.HttpContext.Request.Headers.TryGetValue("Authorization", out StringValues values))
+            var result = _accessor.HttpContext.Request.TryExtractBasicCredentials(out string username, out string password);
+            request.Username = username;
+            request.Password = password;
+            errorResult = result ? null : new CoffeeServiceResult(StatusCodes.Status401Unauthorized)
             {
-                return false;
-            }
+                Message = "HTTP basic authentication is required"
+            };
+            return result;
+        }
 
-            string value = values.ToString();
-            if (value == null || !value.StartsWith(BasicPrefix, StringComparison.OrdinalIgnoreCase) || value.Length == BasicPrefix.Length)
+        private CoffeeServiceResult ToCoffeeServiceResult(WorkerResponse response)
+        {
+            switch (response?.Status)
             {
-                return false;
+                case WorkStatus.Ok:
+                    return new CoffeeServiceResult(StatusCodes.Status200OK)
+                    {
+                        Progress = response.Progress
+                    };
+                case WorkStatus.BadLogin:
+                    return new CoffeeServiceResult(StatusCodes.Status401Unauthorized)
+                    {
+                        Message = "Invalid user name or password"
+                    };
+                case WorkStatus.CafeClosed:
+                    return new CoffeeServiceResult(StatusCodes.Status503ServiceUnavailable)
+                    {
+                        Message = "The café is closed"
+                    };
+                case WorkStatus.Conflict:
+                    return new CoffeeServiceResult(StatusCodes.Status409Conflict)
+                    {
+                        Message = "An order is already in progress"
+                    };
+                case WorkStatus.Error:
+                    return new CoffeeServiceResult(StatusCodes.Status500InternalServerError)
+                    {
+                        Message = "Internal server error"
+                    };
+                case null:
+                    return new CoffeeServiceResult(StatusCodes.Status504GatewayTimeout)
+                    {
+                        Message = "Request timed out"
+                    };
+                default:
+                    _log.LogError("Unknown response status {Status}", response.Status);
+                    return new CoffeeServiceResult(StatusCodes.Status500InternalServerError)
+                    {
+                        Message = "Internal server error"
+                    };
             }
-
-            string base64 = value.Substring(BasicPrefix.Length).Trim();
-            string strung = Encoding.ASCII.GetString(Convert.FromBase64String(base64));
-            string[] splat = strung.Split(':');
-            if (splat.Length != 2 || splat.Any(s => s == ""))
-            {
-                return false;
-            }
-
-            wr.Username = splat[0];
-            wr.Password = splat[1];
-            return true;
         }
     }
 }

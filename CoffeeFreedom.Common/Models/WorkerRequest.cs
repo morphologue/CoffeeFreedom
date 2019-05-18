@@ -3,7 +3,6 @@ using Newtonsoft.Json.Converters;
 
 namespace CoffeeFreedom.Common.Models
 {
-    [JsonConverter(typeof(StringEnumConverter))]
     public class WorkerRequest : WorkerModelBase
     {
         public string Username { get; set; }

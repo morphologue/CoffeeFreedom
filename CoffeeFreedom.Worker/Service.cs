@@ -2,41 +2,48 @@
 using System.Configuration;
 using System.ServiceProcess;
 using System.Text;
+using System.Threading.Tasks;
 using CoffeeFreedom.Common.Models;
-using Microsoft.AspNet.SignalR.Client;
+using Microsoft.AspNetCore.Http.Connections;
+using Microsoft.AspNetCore.SignalR.Client;
 
 namespace CoffeeFreedom.Worker
 {
     public partial class Service : ServiceBase
     {
         private readonly HubConnection _hubConnection;
-        private readonly IHubProxy _hubProxy;
-
+        
         public Service()
         {
             InitializeComponent();
 
-            // SignalR settings
-            string url = ConfigurationManager.AppSettings["HubUrl"];
-            string secret = ConfigurationManager.AppSettings["HubSecret"];
-            string name = ConfigurationManager.AppSettings["HubName"];
+            _log.Source = ServiceName;
 
             // Set up SignalR.
-            _hubConnection = new HubConnection(url);
-            string usernamePassword = $"{GetType().Namespace}:{secret}";
-            _hubConnection.Headers.Add("Authorization", $"Basic {Convert.ToBase64String(Encoding.ASCII.GetBytes(usernamePassword))}");
-            _hubProxy = _hubConnection.CreateHubProxy(name);
-            _hubProxy.On<WorkerRequest>("Request", HandleRequest);
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(ConfigurationManager.AppSettings["HubUrl"], options =>
+                {
+                    options.Transports = HttpTransportType.ServerSentEvents | HttpTransportType.LongPolling;
+                    string usernamePassword = $"{GetType().Namespace}:{ConfigurationManager.AppSettings["HubSecret"]}";
+                    options.Headers.Add("Authorization", $"Basic {Convert.ToBase64String(Encoding.ASCII.GetBytes(usernamePassword))}");
+                })
+                .Build();
+            _hubConnection.On<WorkerRequest>("RequestAsync", HandleRequest);
+            _hubConnection.Closed += async _ =>
+            {
+                await Task.Delay(new Random().Next(0, 5) * 1000);
+                await _hubConnection.StartAsync();
+            };
         }
 
         protected override void OnStart(string[] args)
         {
-            _hubConnection.Start().Wait();
+            _hubConnection.StartAsync().Wait();
         }
 
         protected override void OnStop()
         {
-            _hubConnection.Stop();
+            Task.Run(async () => await _hubConnection.StopAsync());
         }
 
         private void HandleRequest(WorkerRequest request)
@@ -60,15 +67,9 @@ namespace CoffeeFreedom.Worker
 
             // Send the response.
             response.Guid = request.Guid;
-            _hubProxy.Invoke("Response", response).Wait();
+            _hubConnection.InvokeAsync<WorkerResponse>("RespondAsync", response).Wait();
 
             _log.WriteEntry($"Sent response {response.Guid}");
-        }
-
-        // Allow this project to be run as a console app.
-        private static void Main()
-        {
-            Run(new ServiceBase[] {new Service()});
         }
     }
 }

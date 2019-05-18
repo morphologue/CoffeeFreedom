@@ -112,11 +112,13 @@ namespace CoffeeFreedom.Worker
             {
                 Cookies = new List<string>();
             }
-
-            Cookies = values
-                .Where(v => v.StartsWith(".AspNetCore."))
-                .Select(v => v.Substring(0, v.IndexOf(';')))
-                .ToList();
+            else
+            {
+                Cookies = values
+                    .Where(v => v.StartsWith(".AspNetCore."))
+                    .Select(v => v.Substring(0, v.IndexOf(';')))
+                    .ToList();
+            }
         }
 
         protected void SaveCsrf(HtmlDocument doc)
@@ -128,11 +130,19 @@ namespace CoffeeFreedom.Worker
 
         protected void AddCsrf(MultipartFormDataContent form)
         {
+            if (Csrf == null)
+            {
+                return;
+            }
             form.Add(new StringContent(Csrf), "__RequestVerificationToken");
         }
 
         protected void AddCookies(HttpRequestHeaders headers)
         {
+            if (Cookies.Count == 0)
+            {
+                return;
+            }
             headers.Add("Cookie", string.Join("; ", Cookies));
         }
     }

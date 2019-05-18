@@ -6,9 +6,11 @@ using CoffeeFreedom.Common.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace CoffeeFreedom.Controllers
+namespace CoffeeFreedom.Api.Controllers
 {
     [ApiController]
+    [Produces(MediaTypeNames.Application.Json)]
+    [Consumes(MediaTypeNames.Application.Json)]
     [Route("/coffeefreedom")]
     public class CoffeeController : ControllerBase
     {
@@ -20,13 +22,9 @@ namespace CoffeeFreedom.Controllers
         }
 
         [HttpGet]
-        [Produces(MediaTypeNames.Application.Json)]
-        [Consumes(MediaTypeNames.Application.Json)]
         public async Task<ActionResult<Progress>> Get() => ToActionResult(await _coffee.PeekAsync());
 
         [HttpPost]
-        [Produces(MediaTypeNames.Application.Json)]
-        [Consumes(MediaTypeNames.Application.Json)]
         public async Task<ActionResult<Progress>> Post([FromBody] Order order) => ToActionResult(await _coffee.OrderAsync(order));
 
         private ActionResult<Progress> ToActionResult(CoffeeServiceResult coffeeResult)

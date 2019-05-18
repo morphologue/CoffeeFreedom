@@ -48,12 +48,14 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject>CoffeeFreedom.Worker.Service</StartupObject>
+    <StartupObject>CoffeeFreedom.Worker.Program</StartupObject>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
+    <Reference Include="System.Configuration.Install" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Management" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -63,6 +65,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="ProjectInstaller.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="ProjectInstaller.Designer.cs">
+      <DependentUpon>ProjectInstaller.cs</DependentUpon>
+    </Compile>
     <Compile Include="RequestHandlerBase.cs" />
     <Compile Include="OrderRequestHandler.cs" />
     <Compile Include="PeekRequestHandler.cs" />
@@ -90,6 +99,9 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="ProjectInstaller.resx">
+      <DependentUpon>ProjectInstaller.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Service.resx">
       <DependentUpon>Service.cs</DependentUpon>
     </EmbeddedResource>
@@ -104,8 +116,8 @@
     <PackageReference Include="HtmlAgilityPack">
       <Version>1.11.4</Version>
     </PackageReference>
-    <PackageReference Include="Microsoft.AspNet.SignalR.Client">
-      <Version>2.4.1</Version>
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client">
+      <Version>1.1.0</Version>
     </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
