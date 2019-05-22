@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Configuration;
+using System.Diagnostics;
 using System.ServiceProcess;
 using System.Text;
 using System.Threading.Tasks;
@@ -48,8 +49,6 @@ namespace CoffeeFreedom.Worker
 
         private void HandleRequest(WorkerRequest request)
         {
-            _log.WriteEntry($"Received request {request.Guid}");
-
             // Select the specific handler type.
             RequestHandlerBase handler = request.Order == null ? (RequestHandlerBase)new PeekRequestHandler() : new OrderRequestHandler();
             WorkerResponse response;
@@ -61,15 +60,14 @@ namespace CoffeeFreedom.Worker
             }
             catch (Exception ex)
             {
-                _log.WriteEntry($"Exception: {ex}");
+                _log.WriteEntry($"Exception: {ex}", EventLogEntryType.Error);
                 response = new WorkerResponse(WorkStatus.Error);
             }
 
             // Send the response.
             response.Guid = request.Guid;
             _hubConnection.InvokeAsync<WorkerResponse>("RespondAsync", response).Wait();
-
-            _log.WriteEntry($"Sent response {response.Guid}");
+            _log.WriteEntry($"Sent response {response.Guid} for user {request.Username}");
         }
     }
 }
