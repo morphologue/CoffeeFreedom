@@ -66,8 +66,8 @@ namespace CoffeeFreedom.Worker
 
             // Send the response.
             response.Guid = request.Guid;
-            _hubConnection.InvokeAsync<WorkerResponse>("RespondAsync", response).Wait();
-            _log.WriteEntry($"Sent response {response.Guid} for user {request.Username}");
+            _hubConnection.InvokeAsync("RespondAsync", response);
+            _log.WriteEntry($"Sending response {response.Guid} for user {request.Username}");
         }
     }
 }

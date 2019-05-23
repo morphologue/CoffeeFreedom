@@ -33,7 +33,7 @@ namespace CoffeeFreedom.Api.Controllers
             {
                 return Ok(coffeeResult.Progress);
             }
-            return new ContentResult()
+            return new ContentResult
             {
                 StatusCode = coffeeResult.HttpStatusCode,
                 Content = coffeeResult.Message,
