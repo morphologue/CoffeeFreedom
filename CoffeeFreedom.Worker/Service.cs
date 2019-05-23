@@ -30,9 +30,11 @@ namespace CoffeeFreedom.Worker
                 })
                 .Build();
             _hubConnection.On<WorkerRequest>("RequestAsync", HandleRequest);
+            Random random = new Random();
             _hubConnection.Closed += async _ =>
             {
-                await Task.Delay(new Random().Next(0, 5) * 1000);
+                await Task.Delay(random.Next(0, 4) * 1000);
+                _log.WriteEntry("Restarting SignalR connection", EventLogEntryType.Warning);
                 await _hubConnection.StartAsync();
             };
         }
