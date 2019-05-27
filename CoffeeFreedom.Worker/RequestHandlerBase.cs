@@ -12,8 +12,9 @@ namespace CoffeeFreedom.Worker
 {
     internal abstract class RequestHandlerBase
     {
+        private static int? LastKnownQueueLength;
+
         protected static readonly HttpClient Http;
-        protected static int? LastKnownQueueLength;
 
         static RequestHandlerBase()
         {
@@ -23,7 +24,7 @@ namespace CoffeeFreedom.Worker
             };
         }
 
-        protected List<string> Cookies;
+        protected Dictionary<string, string> Cookies;
         protected string Csrf;
         protected HtmlDocument Document;
 
@@ -85,39 +86,45 @@ namespace CoffeeFreedom.Worker
                 };
             }
 
-            // Check if we're on the "wait" page.
+            // We must be on the "wait" page.
+            return ExtractPosition();
+        }
+
+        protected WorkerResponse ExtractPosition()
+        {
             const string queuePositionPrefix = "You are currently number ";
             HtmlNode queuePositionNode = Document.DocumentNode.SelectSingleNode($"//h2[starts-with(text(), '{queuePositionPrefix}')]");
-            if (queuePositionNode != null)
+            if (queuePositionNode == null)
             {
-                string number = queuePositionNode.InnerText.Substring(queuePositionPrefix.Length);
-                number = number.Substring(0, number.IndexOf(' '));
-                return new WorkerResponse(WorkStatus.Ok)
-                {
-                    Progress = new Progress
-                    {
-                        QueueLength = LastKnownQueueLength,
-                        QueuePosition = int.Parse(number)
-                    }
-                };
+                throw new Exception("Cannot understand queue position page: " + Document.DocumentNode.OuterHtml);
             }
 
-            // We ended up somewhere unknown.
-            throw new Exception("Cannot understand post-login page: " + Document.DocumentNode.OuterHtml);
+            string number = queuePositionNode.InnerText.Substring(queuePositionPrefix.Length);
+            number = number.Substring(0, number.IndexOf(' '));
+            return new WorkerResponse(WorkStatus.Ok)
+            {
+                Progress = new Progress
+                {
+                    QueueLength = LastKnownQueueLength,
+                    QueuePosition = int.Parse(number)
+                }
+            };
         }
 
         protected void SaveCookies(HttpResponseHeaders headers)
         {
             if (!headers.TryGetValues("Set-Cookie", out IEnumerable<string> values))
             {
-                Cookies = new List<string>();
+                Cookies = Cookies ?? new Dictionary<string, string>();
+                return;
             }
-            else
+
+            IEnumerable<string[]> newCookies = values
+                .Where(v => v.StartsWith(".AspNetCore."))
+                .Select(v => v.Substring(0, v.IndexOf(';')).Split('='));
+            foreach (string[] cookie in newCookies)
             {
-                Cookies = values
-                    .Where(v => v.StartsWith(".AspNetCore."))
-                    .Select(v => v.Substring(0, v.IndexOf(';')))
-                    .ToList();
+                Cookies[cookie[0]] = cookie[1];
             }
         }
 
@@ -137,13 +144,22 @@ namespace CoffeeFreedom.Worker
             form.Add(new StringContent(Csrf), "__RequestVerificationToken");
         }
 
+        protected void AddCsrf(Dictionary<string, string> formValues)
+        {
+            if (Csrf == null)
+            {
+                return;
+            }
+            formValues.Add("__RequestVerificationToken", Csrf);
+        }
+
         protected void AddCookies(HttpRequestHeaders headers)
         {
             if (Cookies.Count == 0)
             {
                 return;
             }
-            headers.Add("Cookie", string.Join("; ", Cookies));
+            headers.Add("Cookie", string.Join("; ", Cookies.Select(c => $"{c.Key}={c.Value}")));
         }
     }
 }

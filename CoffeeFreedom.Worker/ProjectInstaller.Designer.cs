@@ -39,6 +39,7 @@
             // 
             // serviceInstaller1
             // 
+            this.serviceInstaller1.DelayedAutoStart = true;
             this.serviceInstaller1.Description = "Process requests from the CoffeeFreedom API";
             this.serviceInstaller1.ServiceName = "CoffeeFreedomWorker";
             this.serviceInstaller1.StartType = System.ServiceProcess.ServiceStartMode.Automatic;
