@@ -12,9 +12,8 @@ namespace CoffeeFreedom.Worker
 {
     internal abstract class RequestHandlerBase
     {
-        private static int? LastKnownQueueLength;
-
         protected static readonly HttpClient Http;
+        protected static int? LastKnownQueueLength;
 
         static RequestHandlerBase()
         {
@@ -113,9 +112,10 @@ namespace CoffeeFreedom.Worker
 
         protected void SaveCookies(HttpResponseHeaders headers)
         {
+            Cookies = Cookies ?? new Dictionary<string, string>();
+
             if (!headers.TryGetValues("Set-Cookie", out IEnumerable<string> values))
             {
-                Cookies = Cookies ?? new Dictionary<string, string>();
                 return;
             }
 

@@ -40,7 +40,10 @@ namespace CoffeeFreedom.Api.Services
 
         public async Task<CoffeeServiceResult> OrderAsync(Order order)
         {
-            WorkerRequest request = new WorkerRequest();
+            WorkerRequest request = new WorkerRequest
+            {
+                Order = order
+            };
             if (!ExtractCredentials(request, out var errorResult))
             {
                 return errorResult;
