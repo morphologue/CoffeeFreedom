@@ -1,7 +1,4 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-
-namespace CoffeeFreedom.Common.Models
+﻿namespace CoffeeFreedom.Common.Models
 {
     public class WorkerRequest : WorkerModelBase
     {

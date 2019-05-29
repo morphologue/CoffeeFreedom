@@ -58,11 +58,11 @@ namespace CoffeeFreedom.Common.Extensions
             // Go above and beyond.
             if (order.Customisations.Contains(Customisation.Weak) && order.Customisations.Contains(Customisation.Strong))
             {
-                return "Although allowed by CafeIt, one wonders how a coffee could be simultaneously weak and strong";
+                return "Although allowed by CafeIT, one wonders how a coffee could be simultaneously weak and strong";
             }
             if (order.Customisations.Contains(Customisation.ExtraHot) && order.Customisations.Contains(Customisation.Warm))
             {
-                return "Although allowed by CafeIt, one wonders how a coffee could be simultaneously extra hot and warm";
+                return "Although allowed by CafeIT, one wonders how a coffee could be simultaneously extra hot and warm";
             }
 
             return null;
