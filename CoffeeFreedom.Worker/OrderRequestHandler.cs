@@ -122,6 +122,7 @@ namespace CoffeeFreedom.Worker
             {
                 throw new Exception("Unexpected post-order page: " + Document.DocumentNode.OuterHtml);
             }
+            LastKnownQueueLength = (LastKnownQueueLength ?? 0) + 1;
 
             // Using the same session, check the queue position.
             Document = new HtmlDocument();
