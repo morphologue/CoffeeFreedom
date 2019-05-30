@@ -98,14 +98,18 @@ namespace CoffeeFreedom.Worker
                 throw new Exception("Cannot understand queue position page: " + Document.DocumentNode.OuterHtml);
             }
 
-            string number = queuePositionNode.InnerText.Substring(queuePositionPrefix.Length);
-            number = number.Substring(0, number.IndexOf(' '));
+            string numeric = queuePositionNode.InnerText.Substring(queuePositionPrefix.Length);
+            numeric = numeric.Substring(0, numeric.IndexOf(' '));
+            int position = int.Parse(numeric);
+
+            LastKnownQueueLength = Math.Max(LastKnownQueueLength ?? 0, position);
+
             return new WorkerResponse(WorkStatus.Ok)
             {
                 Progress = new Progress
                 {
                     QueueLength = LastKnownQueueLength,
-                    QueuePosition = int.Parse(number)
+                    QueuePosition = position
                 }
             };
         }
