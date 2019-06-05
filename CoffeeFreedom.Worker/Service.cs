@@ -30,12 +30,24 @@ namespace CoffeeFreedom.Worker
                 })
                 .Build();
             _hubConnection.On<WorkerRequest>("RequestAsync", HandleRequest);
+
+            // Retry on network errors. This was built-in in the old SignalR :(
             Random random = new Random();
-            _hubConnection.Closed += async _ =>
+            _hubConnection.Closed += async exception =>
             {
-                await Task.Delay(random.Next(0, 4) * 1000);
-                _log.WriteEntry("Restarting SignalR connection", EventLogEntryType.Warning);
-                await _hubConnection.StartAsync();
+                do
+                {
+                    await Task.Delay(random.Next(0, 4) * 1000);
+                    _log.WriteEntry($"Restarting SignalR connection due to exception: {exception}", EventLogEntryType.Warning);
+                    try
+                    {
+                        await _hubConnection.StartAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        exception = ex;
+                    }
+                } while (_hubConnection.State != HubConnectionState.Connected);
             };
         }
 
