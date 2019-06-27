@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
@@ -53,6 +54,10 @@ namespace CoffeeFreedom.Worker
 
                 using (HttpResponseMessage loginPostResponse = await Http.SendAsync(loginPostRequest))
                 {
+                    if (loginPostResponse.StatusCode == HttpStatusCode.NotFound)
+                    {
+                        return new WorkerResponse(WorkStatus.BadLogin);
+                    }
                     Document.Load(await loginPostResponse.Content.ReadAsStreamAsync());
                     SaveCookies(loginPostResponse.Headers);
                     SaveCsrf(Document);
